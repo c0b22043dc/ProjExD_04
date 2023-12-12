@@ -234,7 +234,7 @@ class Score:
     def __init__(self):
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 0
+        self.value = 10000
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -243,6 +243,33 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+
+class Gravity(pg.sprite.Sprite):
+    """
+    <追加機能2>
+    画面全体を覆う重力場を発生させる
+    画面全体を覆う重力場を派生させるクラス
+    重力場：画面全体に透明度のある黒い矩形
+    発動時間：400フレーム
+    効果：重力球の範囲内の爆弾を打ち落とす
+    発動条件：リターンキー押下，かつ，スコアが200より大
+    消費スコア：200
+    """
+    def __init__(self, life: int):
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((WIDTH, HEIGHT))  # 空のSurfaceインスタンスを生成
+        self.rect = self.image.get_rect()
+        pg.draw.rect(self.image,[0, 0, 0],(0, 0, WIDTH, HEIGHT))  # 上記Surfaceにrectをdrawする
+        self.image.set_alpha(128)  # 重力場の透明度を設定(半透明：128)
+        
+
+    def update(self,screen:pg.Surface):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+        screen.blit(self.image, self.rect)
+        
 
 def main():
     pg.display.set_caption("真！こうかとん無双")
@@ -255,6 +282,7 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    gravities = pg.sprite.Group()  # Gravityグループを作成
 
     tmr = 0
     clock = pg.time.Clock()
@@ -265,6 +293,19 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:  # リターンキーが押され、スコアが200以上のとき
+                    gravities.add(Gravity(400))  
+                    score.value -= 200  # スコアを200減らす
+                    # 重力場と爆弾の衝突判定
+                    for bomb in pg.sprite.groupcollide(bombs, gravities, True, False).keys():
+                        exps.add(Explosion(bomb, 50))  # 爆発エフェクト
+                        score.value += 1  # 1点アップ
+
+                    # 重力場と敵機の衝突判定
+                    for emy in pg.sprite.groupcollide(emys, gravities, True, False).keys():
+                        exps.add(Explosion(emy, 100))  # 爆発エフェクト
+                        score.value += 10  # 10点アップ
+
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -301,6 +342,7 @@ def main():
         exps.update()
         exps.draw(screen)
         score.update(screen)
+        gravities.update(screen)
         pg.display.update()
         tmr += 1
         clock.tick(50)
