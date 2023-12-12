@@ -6,8 +6,8 @@ import time
 import pygame as pg
 
 
-WIDTH = 1600  # ゲームウィンドウの幅
-HEIGHT = 900  # ゲームウィンドウの高さ
+WIDTH = 1200  # ゲームウィンドウの幅
+HEIGHT = 600  # ゲームウィンドウの高さ
 MAIN_DIR = os.path.split(os.path.abspath(__file__))[0]
 
 
@@ -73,8 +73,13 @@ class Bird(pg.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.center = xy
         self.speed = 10
+ C0B22043/feature4
+        self.state ="normal"
+        self.hyper_life = 0
+
     
 
+ main
 
     def change_img(self, num: int, screen: pg.Surface):
         """
@@ -109,9 +114,26 @@ class Bird(pg.sprite.Sprite):
         if not (sum_mv[0] == 0 and sum_mv[1] == 0):
             self.dire = tuple(sum_mv)
             self.image = self.imgs[self.dire]
+        if self.state == "hyper": #無敵状態だったら
+            self.image = pg.transform.laplacian(self.image)
+            self.hyper_life -= 1
+        if self.hyper_life < 0:
+            self.state ="normal"
         screen.blit(self.image, self.rect)
 
         
+
+    # #def Muteki(self,key_lst:list[bool],screen: pg.Surface): #無敵状態
+    #     score = Score()
+    #     if key_lst[pg.K_RSHIFT] and score.value > 1 and self.state == "normal":
+    #         self.state ="hyper"
+    #         self.hyper_life = 500
+    #     if self.state == "hyper":
+    #         self.image = pg.transform.laplacian(self.image)
+    #         screen.blit(self.image)
+    #         self.hyper_life -= 1
+    #     if self.hyper_life < 0:
+    #         self.state ="normal"        
 
 class Bomb(pg.sprite.Sprite):
     """
@@ -264,10 +286,11 @@ class Score:
     爆弾：1点
     敵機：10点
     """
+    
     def __init__(self):
+        self.value = 0
         self.font = pg.font.Font(None, 50)
         self.color = (0, 0, 255)
-        self.value = 0
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         self.rect = self.image.get_rect()
         self.rect.center = 100, HEIGHT-50
@@ -309,8 +332,12 @@ def main():
     screen = pg.display.set_mode((WIDTH, HEIGHT))
     bg_img = pg.image.load(f"{MAIN_DIR}/fig/pg_bg.jpg")
     score = Score()
+ C0B22043/feature4
+    score.update(screen)#スコアの表示
+
     speed = 10
 
+ main
     bird = Bird(3, (900, 400))
     bombs = pg.sprite.Group()
     beams = pg.sprite.Group()
@@ -329,6 +356,13 @@ def main():
                 speed*2 
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+ C0B22043/feature4
+            if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT:
+                if score.value > 1:
+                    bird.state = "hyper"
+                    bird.hyper_life = 500
+                    score.value -= 100
+
  C0A22069/feature3
             if event.type == pg.KEYDOWN and event.key == pg.K_e:
                 if score.value >= 20 :
@@ -350,6 +384,7 @@ def main():
  main
 
         screen.blit(bg_img, [0, 0])
+ main
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
             emys.add(Enemy())
@@ -364,18 +399,34 @@ def main():
             score.value += 10  # 10点アップ
             bird.change_img(6, screen)  # こうかとん喜びエフェクト
 
+        #無敵状態で爆弾にぶつかる
         for bomb in pg.sprite.groupcollide(bombs, beams, True, True).keys():
             exps.add(Explosion(bomb, 50))  # 爆発エフェクト
             score.value += 1  # 1点アップ
 
+ C0B22043/feature4
+        # bird.Muteki(key_lst, screen)
+        for bomb in pg.sprite.spritecollide(bird, bombs, True):
+            if bird.state =="normal":
+                bird.change_img(8, screen)
+
         for bomb in pg.sprite.spritecollide(bird, bombs, True):
             if bomb.state == "active":
                 bird.change_img(8, screen) # こうかとん悲しみエフェクト
+ main
                 score.update(screen)
                 pg.display.update()
                 time.sleep(2)
                 return
+ C0B22043/feature4
+            if bird.state == "hyper":
+                exps.add(Explosion(bomb, 50))
+                score.value += 1
+        
+        screen.blit(bg_img, [0, 0])
 
+
+ main
         bird.update(key_lst, screen)
         beams.update()
         beams.draw(screen)
